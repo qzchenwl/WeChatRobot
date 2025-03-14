@@ -112,6 +112,7 @@ async def verify_token(api_key: str = Security(APIKeyHeader(name="X-API-KEY", au
 
 @app.get("/", tags=["系统状态"])
 def read_root(authenticated: bool = Depends(verify_token)):
+    """检查服务是否正在运行"""
     return {"message": "Service is running"}
 
 
@@ -123,6 +124,17 @@ def send_text(
         aters: str = Body("", description="要 @ 的 wxid，多个用逗号分隔；@所有人 用 notify@all"),
         authenticated: bool = Depends(verify_token),
 ):
+    """发送文本消息
+    
+    Args:
+        msg: 要发送的消息，换行使用 \\n
+        receiver: 消息接收人，wxid 或者 roomid
+        aters: 要 @ 的 wxid，多个用逗号分隔；@所有人 只需要 notify@all
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 0 为成功，其他失败
+    """
     try:
         ret = app.wcf.send_text(msg, receiver, aters)
         return {"status": "ok", "data": ret}
@@ -137,6 +149,17 @@ def send_image(
         receiver: str = Body(description="消息接收者，roomid 或者 wxid"),
         authenticated: bool = Depends(verify_token),
 ):
+    """发送图片
+    
+    Args:
+        image_data: 图片的base64编码数据
+        filename: 图片文件名，包含扩展名
+        receiver: 消息接收人，wxid 或者 roomid
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 0 为成功，其他失败
+    """
     try:
         # 解码base64数据
         image_bytes = base64.b64decode(image_data)
@@ -163,6 +186,17 @@ def send_file(
         receiver: str = Body(description="消息接收者，roomid 或者 wxid"),
         authenticated: bool = Depends(verify_token),
 ):
+    """发送文件
+    
+    Args:
+        file_data: 文件的base64编码数据
+        filename: 文件名，包含扩展名
+        receiver: 消息接收人，wxid 或者 roomid
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 0 为成功，其他失败
+    """
     try:
         # 解码base64数据
         file_bytes = base64.b64decode(file_data)
@@ -189,6 +223,17 @@ def send_emotion(
         receiver: str = Body(description="消息接收者，roomid 或者 wxid"),
         authenticated: bool = Depends(verify_token),
 ):
+    """发送表情
+    
+    Args:
+        file_data: 表情文件的base64编码数据
+        filename: 表情文件名，包含扩展名
+        receiver: 消息接收人，wxid 或者 roomid
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 0 为成功，其他失败
+    """
     try:
         # 解码base64数据
         file_bytes = base64.b64decode(file_data)
@@ -219,6 +264,31 @@ def send_rich_text(
         receiver: str = Body(description="接收人, wxid 或者 roomid"),
         authenticated: bool = Depends(verify_token),
 ):
+    """发送富文本消息
+    
+    卡片样式：
+        |-------------------------------------|
+        |title, 最长两行
+        |(长标题, 标题短的话这行没有)
+        |digest, 最多三行，会占位    |--------|
+        |digest, 最多三行，会占位    |thumburl|
+        |digest, 最多三行，会占位    |--------|
+        |(account logo) name
+        |-------------------------------------|
+    
+    Args:
+        name: 左下显示的名字
+        account: 填公众号 id 可以显示对应的头像（gh_ 开头的）
+        title: 标题，最多两行
+        digest: 摘要，三行
+        url: 点击后跳转的链接
+        thumburl: 缩略图的链接
+        receiver: 接收人, wxid 或者 roomid
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 0 为成功，其他失败
+    """
     try:
         ret = app.wcf.send_rich_text(name, account, title, digest, url, thumburl, receiver)
         return {"status": "ok", "data": ret}
@@ -232,6 +302,16 @@ def send_pat(
         wxid: str = Body(description="要拍的群友的wxid"),
         authenticated: bool = Depends(verify_token),
 ):
+    """拍一拍群友
+    
+    Args:
+        roomid: 群 id
+        wxid: 要拍的群友的 wxid
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 1 为成功，其他失败
+    """
     try:
         ret = app.wcf.send_pat_msg(roomid, wxid)
         return {"status": "ok", "data": ret}
@@ -246,6 +326,17 @@ def forward_msg(
         extra: str = Body(description="消息中的extra"),
         authenticated: bool = Depends(verify_token),
 ):
+    """转发消息。可以转发文本、图片、表情、甚至各种 XML；语音也行，不过效果嘛，自己验证吧。
+    
+    Args:
+        id: 待转发消息的 id
+        thumb: 消息中的 thumb
+        extra: 消息中的 extra
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 1 为成功，其他失败
+    """
     try:
         ret = app.wcf.forward_msg(id, thumb, extra)
         return {"status": "ok", "data": ret}
@@ -262,6 +353,19 @@ def send_xml(
         cover_filename: str = Body(None, description="封面图片文件名，包含扩展名"),
         authenticated: bool = Depends(verify_token),
 ):
+    """发送 XML
+    
+    Args:
+        receiver: 消息接收人，wxid 或者 roomid
+        xml: xml 内容
+        type: xml 类型，如：0x21 为小程序
+        cover_data: 封面图片的base64编码数据
+        cover_filename: 封面图片文件名，包含扩展名
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 0 为成功，其他失败
+    """
     try:
         temp_path = None
         if cover_data and cover_filename:
@@ -291,6 +395,17 @@ def accept_friend(
         scene: int = Body(30, description="申请方式，默认为扫码添加(30)"),
         authenticated: bool = Depends(verify_token),
 ):
+    """通过好友申请
+    
+    Args:
+        v3: 加密用户名 (好友申请消息里 v3 开头的字符串)
+        v4: Ticket (好友申请消息里 v4 开头的字符串)
+        scene: 申请方式 (好友申请消息里的 scene)；为了兼容旧接口，默认为扫码添加 (30)
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 1 为成功，其他失败
+    """
     try:
         ret = app.wcf.accept_new_friend(v3, v4, scene)
         return {"status": "ok", "data": ret}
@@ -305,6 +420,17 @@ def receive_transfer(
         transactionid: str = Body(description="转账消息里的transactionid"),
         authenticated: bool = Depends(verify_token),
 ):
+    """接收转账
+    
+    Args:
+        wxid: 转账消息里的发送人 wxid
+        transferid: 转账消息里的 transferid
+        transactionid: 转账消息里的 transactionid
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 1 为成功，其他失败
+    """
     try:
         ret = app.wcf.receive_transfer(wxid, transferid, transactionid)
         return {"status": "ok", "data": ret}
@@ -318,6 +444,16 @@ def add_chatroom_members(
         wxids: str = Body(description="要加到群里的wxid，多个用逗号分隔"),
         authenticated: bool = Depends(verify_token),
 ):
+    """添加群成员
+    
+    Args:
+        roomid: 待加群的 id
+        wxids: 要加到群里的 wxid，多个用逗号分隔
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 1 为成功，其他失败
+    """
     try:
         ret = app.wcf.add_chatroom_members(roomid, wxids)
         return {"status": "ok", "data": ret}
@@ -331,6 +467,16 @@ def del_chatroom_members(
         wxids: str = Body(description="要删除成员的wxid，多个用逗号分隔"),
         authenticated: bool = Depends(verify_token),
 ):
+    """删除群成员
+    
+    Args:
+        roomid: 群的 id
+        wxids: 要删除成员的 wxid，多个用逗号分隔
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 1 为成功，其他失败
+    """
     try:
         ret = app.wcf.del_chatroom_members(roomid, wxids)
         return {"status": "ok", "data": ret}
@@ -344,6 +490,16 @@ def invite_chatroom_members(
         wxids: str = Body(description="要邀请成员的wxid，多个用逗号分隔"),
         authenticated: bool = Depends(verify_token),
 ):
+    """邀请群成员
+    
+    Args:
+        roomid: 群的 id
+        wxids: 要邀请成员的 wxid, 多个用逗号`,`分隔
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 1 为成功，其他失败
+    """
     try:
         ret = app.wcf.invite_chatroom_members(roomid, wxids)
         return {"status": "ok", "data": ret}
@@ -359,6 +515,17 @@ def download_attach(
         extra: str = Body(description="消息中的extra"),
         authenticated: bool = Depends(verify_token),
 ):
+    """下载附件（图片、视频、文件）。这方法别直接调用，下载图片使用 `download_image`。
+    
+    Args:
+        id: 消息中 id
+        thumb: 消息中的 thumb
+        extra: 消息中的 extra
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 0 为成功, 其他失败
+    """
     try:
         ret = app.wcf.download_attach(id, thumb, extra)
         return {"status": "ok", "data": ret}
@@ -374,6 +541,18 @@ def download_image(
         timeout: int = Body(30, description="超时时间（秒）"),
         authenticated: bool = Depends(verify_token),
 ):
+    """下载图片
+    
+    Args:
+        id: 消息中 id
+        extra: 消息中的 extra
+        dir: 存放图片的目录（目录不存在会出错）
+        timeout: 超时时间（秒）
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 成功返回存储路径；空字符串为失败，原因见日志
+    """
     try:
         ret = app.wcf.download_image(id, extra, dir, timeout)
         return {"status": "ok", "data": ret}
@@ -389,6 +568,18 @@ def download_video(
         timeout: int = Body(30, description="超时时间（秒）"),
         authenticated: bool = Depends(verify_token),
 ):
+    """下载视频
+    
+    Args:
+        id: 消息中 id
+        thumb: 消息中的 thumb（即视频的封面图）
+        dir: 存放视频的目录（目录不存在会出错）
+        timeout: 超时时间（秒）
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 成功返回存储路径；空字符串为失败，原因见日志
+    """
     try:
         ret = app.wcf.download_video(id, thumb, dir, timeout)
         return {"status": "ok", "data": ret}
@@ -402,6 +593,16 @@ def decrypt_image(
         dir: str = Body(description="保存图片的目录"),
         authenticated: bool = Depends(verify_token),
 ):
+    """解密图片。这方法别直接调用，下载图片使用 `download_image`。
+    
+    Args:
+        src: 加密的图片路径
+        dir: 保存图片的目录
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 解密图片的保存路径
+    """
     try:
         ret = app.wcf.decrypt_image(src, dir)
         return {"status": "ok", "data": ret}
@@ -415,6 +616,15 @@ def get_chatroom_members(
         roomid: str,
         authenticated: bool = Depends(verify_token),
 ):
+    """获取群成员
+    
+    Args:
+        roomid: 群的 id
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 群成员列表: {wxid1: 昵称1, wxid2: 昵称2, ...}
+    """
     try:
         ret = app.wcf.get_chatroom_members(roomid)
         return {"status": "ok", "data": ret}
@@ -428,6 +638,16 @@ def get_alias_in_chatroom(
         roomid: str,
         authenticated: bool = Depends(verify_token),
 ):
+    """获取群名片
+    
+    Args:
+        wxid: wxid
+        roomid: 群的 id
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 群名片
+    """
     try:
         ret = app.wcf.get_alias_in_chatroom(wxid, roomid)
         return {"status": "ok", "data": ret}
@@ -439,6 +659,12 @@ def get_alias_in_chatroom(
 def get_friends(
         authenticated: bool = Depends(verify_token),
 ):
+    """获取好友列表
+    
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 好友列表
+    """
     try:
         ret = app.wcf.get_friends()
         return {"status": "ok", "data": ret}
@@ -450,6 +676,12 @@ def get_friends(
 def get_contacts(
         authenticated: bool = Depends(verify_token),
 ):
+    """获取完整通讯录
+    
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 通讯录列表
+    """
     try:
         ret = app.wcf.get_contacts()
         return {"status": "ok", "data": ret}
@@ -461,6 +693,12 @@ def get_contacts(
 def get_dbs(
         authenticated: bool = Depends(verify_token),
 ):
+    """获取所有数据库
+    
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 数据库列表
+    """
     try:
         ret = app.wcf.get_dbs()
         return {"status": "ok", "data": ret}
@@ -473,6 +711,15 @@ def get_tables(
         db: str,
         authenticated: bool = Depends(verify_token),
 ):
+    """获取 db 中所有表
+    
+    Args:
+        db: 数据库名（可通过 `get_dbs` 查询）
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: `db` 下的所有表名及对应建表语句
+    """
     try:
         ret = app.wcf.get_tables(db)
         return {"status": "ok", "data": ret}
@@ -484,6 +731,12 @@ def get_tables(
 def get_user_info(
         authenticated: bool = Depends(verify_token),
 ):
+    """获取登录账号个人信息
+    
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 用户信息
+    """
     try:
         ret = app.wcf.get_user_info()
         return {"status": "ok", "data": ret}
@@ -495,6 +748,12 @@ def get_user_info(
 def get_msg_types(
         authenticated: bool = Depends(verify_token),
 ):
+    """获取所有消息类型
+    
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 消息类型字典
+    """
     try:
         ret = app.wcf.get_msg_types()
         return {"status": "ok", "data": ret}
@@ -506,6 +765,12 @@ def get_msg_types(
 def get_qrcode(
         authenticated: bool = Depends(verify_token),
 ):
+    """获取登录二维码，已经登录则返回空字符串
+    
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 登录二维码
+    """
     try:
         ret = app.wcf.get_qrcode()
         return {"status": "ok", "data": ret}
@@ -518,6 +783,15 @@ def get_info_by_wxid(
         wxid: str,
         authenticated: bool = Depends(verify_token),
 ):
+    """通过 wxid 查询微信号昵称等信息
+    
+    Args:
+        wxid: 联系人 wxid
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: {wxid, code, name, gender}
+    """
     try:
         ret = app.wcf.get_info_by_wxid(wxid)
         return {"status": "ok", "data": ret}
@@ -531,6 +805,16 @@ def get_ocr_result(
         timeout: int = Body(2, description="超时时间（秒）"),
         authenticated: bool = Depends(verify_token),
 ):
+    """获取 OCR 结果。鸡肋，需要图片能自动下载；通过下载接口下载的图片无法识别。
+    
+    Args:
+        extra: 待识别的图片路径，消息里的 extra
+        timeout: 超时时间（秒）
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: OCR 结果
+    """
     try:
         ret = app.wcf.get_ocr_result(extra, timeout)
         return {"status": "ok", "data": ret}
@@ -543,6 +827,15 @@ def get_room_name(
         roomid: str,
         authenticated: bool = Depends(verify_token),
 ):
+    """获取群名称
+    
+    Args:
+        roomid: 群的 id
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 群名称
+    """
     try:
         ret = app.wcf.get_room_name(roomid)
         return {"status": "ok", "data": ret}
@@ -555,6 +848,15 @@ def get_room_wxids(
         roomid: str,
         authenticated: bool = Depends(verify_token),
 ):
+    """获取群成员 wxid 列表
+    
+    Args:
+        roomid: 群的 id
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 群成员 wxid 列表
+    """
     try:
         ret = app.wcf.get_room_wxids(roomid)
         return {"status": "ok", "data": ret}
@@ -568,6 +870,15 @@ def revoke_msg(
         id: int = Body(description="待撤回消息的id"),
         authenticated: bool = Depends(verify_token),
 ):
+    """撤回消息
+    
+    Args:
+        id: 待撤回消息的 id
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 1 为成功，其他失败
+    """
     try:
         ret = app.wcf.revoke_msg(id)
         return {"status": "ok", "data": ret}
@@ -580,6 +891,15 @@ def enable_receiving_msg(
         pyq: bool = Body(False, description="是否接收朋友圈消息"),
         authenticated: bool = Depends(verify_token),
 ):
+    """允许接收消息，成功后通过 `get_msg` 读取消息
+    
+    Args:
+        pyq: 是否接收朋友圈消息
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: True 为成功，False 为失败
+    """
     try:
         ret = app.wcf.enable_receiving_msg(pyq)
         return {"status": "ok", "data": ret}
@@ -591,6 +911,12 @@ def enable_receiving_msg(
 def disable_receiving_msg(
         authenticated: bool = Depends(verify_token),
 ):
+    """停止接收消息
+    
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 0 为成功，其他失败
+    """
     try:
         ret = app.wcf.disable_recv_msg()
         return {"status": "ok", "data": ret}
@@ -602,6 +928,12 @@ def disable_receiving_msg(
 def is_receiving_msg(
         authenticated: bool = Depends(verify_token),
 ):
+    """是否已启动接收消息功能
+    
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: True 为已启动，False 为未启动
+    """
     try:
         ret = app.wcf.is_receiving_msg()
         return {"status": "ok", "data": ret}
@@ -614,6 +946,15 @@ def get_msg(
         block: bool = True,
         authenticated: bool = Depends(verify_token),
 ):
+    """从消息队列中获取消息
+    
+    Args:
+        block: 是否阻塞，默认阻塞
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 微信消息
+    """
     try:
         ret = app.wcf.get_msg(block)
         return {"status": "ok", "data": ret}
@@ -626,6 +967,12 @@ def get_msg(
 def is_login(
         authenticated: bool = Depends(verify_token),
 ):
+    """是否已经登录
+    
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: True 为已登录，False 为未登录
+    """
     try:
         ret = app.wcf.is_login()
         return {"status": "ok", "data": ret}
@@ -637,6 +984,12 @@ def is_login(
 def get_self_wxid(
         authenticated: bool = Depends(verify_token),
 ):
+    """获取登录账户的 wxid
+    
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 登录账户的 wxid
+    """
     try:
         ret = app.wcf.get_self_wxid()
         return {"status": "ok", "data": ret}
@@ -650,6 +1003,16 @@ def query_sql(
         sql: str = Body(description="要执行的SQL"),
         authenticated: bool = Depends(verify_token),
 ):
+    """执行 SQL，如果数据量大注意分页，以免 OOM
+    
+    Args:
+        db: 要查询的数据库
+        sql: 要执行的 SQL
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 查询结果
+    """
     try:
         ret = app.wcf.query_sql(db, sql)
         return {"status": "ok", "data": ret}
@@ -663,6 +1026,15 @@ def refresh_pyq(
         id: int = Body(0, description="开始id，0为最新页"),
         authenticated: bool = Depends(verify_token),
 ):
+    """刷新朋友圈
+    
+    Args:
+        id: 开始 id，0 为最新页
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 1 为成功，其他失败
+    """
     try:
         ret = app.wcf.refresh_pyq(id)
         return {"status": "ok", "data": ret}
@@ -673,6 +1045,11 @@ def refresh_pyq(
 # Message subscription endpoints
 @app.get("/subscribe", tags=["消息订阅"])
 def subscribe(request: Request, authenticated: bool = Depends(verify_token)):
+    """订阅消息，使用 Server-Sent Events (SSE) 推送消息
+    
+    Returns:
+        EventSourceResponse: SSE 响应，推送消息事件
+    """
     msg_queue = asyncio.Queue()
 
     def subscriber(msg: WxMsg):
