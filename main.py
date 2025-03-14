@@ -9,7 +9,7 @@ import time
 import traceback
 import base64
 import tempfile
-import re
+import sys
 from queue import Empty
 
 import uvicorn
@@ -22,6 +22,8 @@ from contextlib import asynccontextmanager
 
 from wcferry import Wcf, WxMsg
 
+sys.stdout.reconfigure(encoding='utf-8')
+
 pwd = os.path.dirname(os.path.abspath(__file__))
 try:
     with open(f"{pwd}/config.yaml", "rb") as fp:
@@ -33,6 +35,7 @@ except FileNotFoundError:
 
 API_KEYS = yconfig["api_keys"]
 SEND_RATE_LIMIT = yconfig.get("send_rate_limit", 0)
+
 
 # Start the pubsub process when the application starts
 @asynccontextmanager
@@ -98,6 +101,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="WCF HTTP", lifespan=lifespan)
+
+
 # app = FastAPI(title="WCF HTTP")
 
 async def verify_token(api_key: str = Security(APIKeyHeader(name="X-API-KEY", auto_error=False))):
@@ -163,17 +168,17 @@ def send_image(
     try:
         # 解码base64数据
         image_bytes = base64.b64decode(image_data)
-        
+
         # 创建临时文件保存图片
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, filename)
-        
+
         with open(temp_path, "wb") as buffer:
             buffer.write(image_bytes)
-        
+
         # 发送图片
         ret = app.wcf.send_image(temp_path, receiver)
-        
+
         return {"status": "ok", "data": ret}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -200,17 +205,17 @@ def send_file(
     try:
         # 解码base64数据
         file_bytes = base64.b64decode(file_data)
-        
+
         # 创建临时文件保存文件
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, filename)
-        
+
         with open(temp_path, "wb") as buffer:
             buffer.write(file_bytes)
-        
+
         # 发送文件
         ret = app.wcf.send_file(temp_path, receiver)
-        
+
         return {"status": "ok", "data": ret}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -237,17 +242,17 @@ def send_emotion(
     try:
         # 解码base64数据
         file_bytes = base64.b64decode(file_data)
-        
+
         # 创建临时文件保存表情
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, filename)
-        
+
         with open(temp_path, "wb") as buffer:
             buffer.write(file_bytes)
-        
+
         # 发送表情
         ret = app.wcf.send_emotion(temp_path, receiver)
-        
+
         return {"status": "ok", "data": ret}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -371,17 +376,17 @@ def send_xml(
         if cover_data and cover_filename:
             # 解码base64数据
             cover_bytes = base64.b64decode(cover_data)
-            
+
             # 创建临时文件保存封面图片
             temp_dir = tempfile.gettempdir()
             temp_path = os.path.join(temp_dir, cover_filename)
-            
+
             with open(temp_path, "wb") as buffer:
                 buffer.write(cover_bytes)
-        
+
         # 发送xml
         ret = app.wcf.send_xml(receiver, xml, type, temp_path)
-        
+
         return {"status": "ok", "data": ret}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -534,13 +539,13 @@ def download_attach(
                 # 如果文件存在，读取文件并转为base64
                 with open(extra, "rb") as f:
                     file_content = f.read()
-                
+
                 # 获取文件名
                 file_name = os.path.basename(extra)
-                
+
                 # 转为base64
                 base64_content = base64.b64encode(file_content).decode('utf-8')
-                
+
                 # 返回文件名和base64内容
                 return {"status": "ok", "data": {"file_name": file_name, "base64_content": base64_content}}
             return {"status": "ok", "data": {"status": "downloaded", "path": extra}}
@@ -571,19 +576,19 @@ def download_image(
     try:
         # 使用临时目录
         temp_dir = tempfile.gettempdir()
-        
+
         file_path = app.wcf.download_image(id, extra, temp_dir, timeout)
         if file_path:
             # 如果下载成功，读取文件并转为base64
             with open(file_path, "rb") as f:
                 file_content = f.read()
-            
+
             # 获取文件名
             file_name = os.path.basename(file_path)
-            
+
             # 转为base64
             base64_content = base64.b64encode(file_content).decode('utf-8')
-            
+
             # 返回文件名和base64内容
             return {"status": "ok", "data": {"file_name": file_name, "base64_content": base64_content}}
         else:
@@ -613,19 +618,19 @@ def download_video(
     try:
         # 使用临时目录
         temp_dir = tempfile.gettempdir()
-        
+
         file_path = app.wcf.download_video(id, thumb, temp_dir, timeout)
         if file_path:
             # 如果下载成功，读取文件并转为base64
             with open(file_path, "rb") as f:
                 file_content = f.read()
-            
+
             # 获取文件名
             file_name = os.path.basename(file_path)
-            
+
             # 转为base64
             base64_content = base64.b64encode(file_content).decode('utf-8')
-            
+
             # 返回文件名和base64内容
             return {"status": "ok", "data": {"file_name": file_name, "base64_content": base64_content}}
         else:
@@ -651,19 +656,19 @@ def decrypt_image(
     try:
         # 使用临时目录
         temp_dir = tempfile.gettempdir()
-        
+
         file_path = app.wcf.decrypt_image(src, temp_dir)
         if file_path:
             # 如果解密成功，读取文件并转为base64
             with open(file_path, "rb") as f:
                 file_content = f.read()
-            
+
             # 获取文件名
             file_name = os.path.basename(file_path)
-            
+
             # 转为base64
             base64_content = base64.b64encode(file_content).decode('utf-8')
-            
+
             # 返回文件名和base64内容
             return {"status": "ok", "data": {"file_name": file_name, "base64_content": base64_content}}
         else:
