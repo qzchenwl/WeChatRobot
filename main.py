@@ -117,8 +117,8 @@ def read_root(authenticated: bool = Depends(verify_token)):
 def subscribe(request: Request, authenticated: bool = Depends(verify_token)):
     msg_queue = asyncio.Queue()
 
-    async def subscriber(msg: WxMsg):
-        await msg_queue.put(msg)
+    def subscriber(msg: WxMsg):
+        msg_queue.put_nowait(msg)
 
     app.subscribers.add(subscriber)
 
