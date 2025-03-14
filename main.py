@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 import asyncio
 import json
-import logging.config
 import os
 import shutil
 import threading
 import time
 import traceback
+from queue import Empty
 
 import uvicorn
 import yaml
@@ -18,8 +18,6 @@ from starlette.status import HTTP_401_UNAUTHORIZED
 from contextlib import asynccontextmanager
 
 from wcferry import Wcf, WxMsg
-
-LOG = logging.getLogger("WCF-HTTP")
 
 pwd = os.path.dirname(os.path.abspath(__file__))
 try:
@@ -42,8 +40,8 @@ async def lifespan(app: FastAPI):
     contacts = app.wcf.query_sql("MicroMsg.db", "SELECT UserName, NickName FROM Contact;")
     app.contacts = {contact["UserName"]: contact["NickName"] for contact in contacts}
 
-    LOG.info(f"Self wxid: {app.wxid}")
-    LOG.info(f"Contacts: {app.contacts}")
+    print(f"Self wxid: {app.wxid}")
+    print(f"Contacts: {app.contacts}")
 
     app.subscribers = set()
 
@@ -51,7 +49,7 @@ async def lifespan(app: FastAPI):
         wcf.enable_receiving_msg(pyq=True)
         while wcf.is_receiving_msg():
             if not wcf.is_receiving_msg():
-                LOG.error("WCF is not receiving messages")
+                print("WCF is not receiving messages")
                 time.sleep(1)
                 continue
             try:
@@ -63,12 +61,15 @@ async def lifespan(app: FastAPI):
                     except Exception as e:
                         dead_subscribers.add(subscriber)
                         print(traceback.format_exc())
-                        LOG.error(f"Error in subscriber: {e}")
+                        print(f"Error in subscriber: {e}")
                 for dead in dead_subscribers:
                     app.subscribers.discard(dead)
+            except Empty:
+                time.sleep(1)
+                continue
             except Exception as e:
                 print(traceback.format_exc())
-                LOG.error(f"Receiving message error: {e}")
+                print(f"Receiving message error: {e}")
 
     app.wcf.send_text("WCF HTTP 服务已启动", "filehelper")
     thread = threading.Thread(target=pubsub, args=(app.wcf,))
