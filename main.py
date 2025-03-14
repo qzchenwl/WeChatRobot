@@ -36,7 +36,7 @@ wcf = Wcf(debug=True)
 
 
 def handler(sig, frame):
-    wcf.cleanup()  # 退出前清理环境
+    wcf.cleanup()
     exit(0)
 
 
