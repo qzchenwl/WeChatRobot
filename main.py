@@ -6,8 +6,10 @@ import logging.config
 import os
 import shutil
 import multiprocessing
+import signal
 import time
 
+import uvicorn
 import yaml
 from fastapi import Body, Request, FastAPI, HTTPException, Security, Depends
 from fastapi.security import APIKeyHeader
@@ -31,6 +33,14 @@ API_TOKENS = yconfig["api_tokens"]
 SEND_RATE_LIMIT = yconfig.get("send_rate_limit", 0)
 
 wcf = Wcf(debug=True)
+
+
+def handler(sig, frame):
+    wcf.cleanup()  # 退出前清理环境
+    exit(0)
+
+
+signal.signal(signal.SIGINT, handler)
 
 subscribers = set()
 
@@ -134,3 +144,6 @@ def send_text(
         return {"status": "ok", "data": ret}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
