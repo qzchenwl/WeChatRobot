@@ -41,13 +41,6 @@ SEND_RATE_LIMIT = yconfig.get("send_rate_limit", 0)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.wcf = Wcf(debug=True)
-    app.wxid = app.wcf.get_self_wxid()
-    contacts = app.wcf.query_sql("MicroMsg.db", "SELECT UserName, NickName FROM Contact;")
-    app.contacts = {contact["UserName"]: contact["NickName"] for contact in contacts}
-
-    print(f"Self wxid: {app.wxid}")
-    print(f"Contacts: {app.contacts}")
-
     app.subscribers = set()
 
     def pubsub(wcf: Wcf):
