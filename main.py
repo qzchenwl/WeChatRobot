@@ -28,7 +28,7 @@ except FileNotFoundError:
     with open(f"{pwd}/config.yaml", "rb") as fp:
         yconfig = yaml.safe_load(fp)
 
-API_TOKENS = yconfig["api_tokens"]
+API_KEYS = yconfig["api_keys"]
 SEND_RATE_LIMIT = yconfig.get("send_rate_limit", 0)
 
 # Create routers for different categories
@@ -117,8 +117,8 @@ app.include_router(pyq_router)
 app.include_router(subscription_router)
 
 
-async def verify_token(api_key: str = Security(APIKeyHeader(name="X-API-Token", auto_error=False))):
-    if api_key not in API_TOKENS:
+async def verify_token(api_key: str = Security(APIKeyHeader(name="X-API-KEY", auto_error=False))):
+    if api_key not in API_KEYS:
         raise HTTPException(
             status_code=HTTP_401_UNAUTHORIZED,
             detail="Invalid API Token",

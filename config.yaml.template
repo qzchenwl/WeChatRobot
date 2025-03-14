@@ -1,4 +1,4 @@
-api_tokens:
+api_keys:
   - this-is-a-secret-token
 
 # 消息发送速率限制：一分钟内最多发送6条消息
