@@ -71,10 +71,10 @@ app = FastAPI(title="WCF HTTP")
 # Start the pubsub process when the application starts
 @app.on_event("startup")
 async def startup_event():
+    wcf.send_text("WCF HTTP 服务已启动", "filehelper")
     process = multiprocessing.Process(target=pubsub, args=(wcf,))
     process.daemon = True  # Make the process daemon so it exits when the main program exits
     process.start()
-    wcf.send_text("WCF HTTP 服务已启动", "filehelper")
 
 
 async def verify_token(api_key: str = Security(APIKeyHeader(name="X-API-Token", auto_error=False))):
