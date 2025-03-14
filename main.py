@@ -62,12 +62,12 @@ async def lifespan(app: FastAPI):
                         subscriber(msg)
                     except Exception as e:
                         dead_subscribers.add(subscriber)
-                        traceback.print_stack()
+                        print(traceback.format_exc())
                         LOG.error(f"Error in subscriber: {e}")
                 for dead in dead_subscribers:
                     app.subscribers.discard(dead)
             except Exception as e:
-                traceback.print_stack()
+                print(traceback.format_exc())
                 LOG.error(f"Receiving message error: {e}")
 
     app.wcf.send_text("WCF HTTP 服务已启动", "filehelper")
