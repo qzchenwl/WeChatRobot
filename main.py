@@ -32,13 +32,13 @@ except FileNotFoundError:
 API_TOKENS = yconfig["api_tokens"]
 SEND_RATE_LIMIT = yconfig.get("send_rate_limit", 0)
 
-wcf = Wcf(debug=True)
-subscribers = set()
-
 
 # Start the pubsub process when the application starts
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    app.wcf = Wcf(debug=True)
+    app.subscribers = set()
+
     def pubsub(wcf: Wcf):
         wcf.enable_receiving_msg(pyq=True)
         while wcf.is_receiving_msg():
@@ -49,7 +49,7 @@ async def lifespan(app: FastAPI):
             try:
                 msg = wcf.get_msg()
                 dead_subscribers = set()
-                for subscriber in subscribers:
+                for subscriber in app.subscribers:
                     try:
                         subscriber(msg)
                     except Exception as e:
@@ -58,12 +58,12 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 LOG.error(f"Receiving message error: {e}")
 
-    wcf.send_text("WCF HTTP 服务已启动", "filehelper")
+    app.wcf.send_text("WCF HTTP 服务已启动", "filehelper")
     thread = threading.Thread(target=pubsub, args=(wcf,))
     thread.daemon = True  # Make the thread daemon so it exits when the main program exits
     thread.start()
     yield
-    wcf.cleanup()
+    app.wcf.cleanup()
 
 
 app = FastAPI(title="WCF HTTP", lifespan=lifespan)
@@ -100,12 +100,12 @@ def subscribe(request: Request, authenticated: bool = Depends(verify_token)):
             "content": msg.content,
             "thumb": msg.thumb,
             "extra": msg.extra,
-            "is_at": msg.is_at(wcf.self_wxid),
+            "is_at": msg.is_at(app.wcf.self_wxid),
             "is_self": msg.from_self(),
             "is_group": msg.from_group(),
         })
 
-    subscribers.add(subscriber)
+    app.subscribers.add(subscriber)
 
     async def event_generator():
         try:
@@ -120,7 +120,7 @@ def subscribe(request: Request, authenticated: bool = Depends(verify_token)):
         except Exception as e:
             print(f"Client disconnected: {e}")
         finally:
-            subscribers.discard(subscriber)
+            app.subscribers.discard(subscriber)
 
     return EventSourceResponse(event_generator())
 
@@ -133,7 +133,7 @@ def send_text(
         authenticated: bool = Depends(verify_token),
 ):
     try:
-        ret = wcf.send_text(msg, receiver, aters)
+        ret = app.wcf.send_text(msg, receiver, aters)
         return {"status": "ok", "data": ret}
     except Exception as e:
         return {"status": "error", "message": str(e)}
