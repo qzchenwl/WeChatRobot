@@ -226,7 +226,7 @@ def send_rich_text(
         return {"status": "error", "message": str(e)}
 
 
-@app.post("/send-pat", tags=["消息发送"])
+@app.post("/send-pat-msg", tags=["消息发送"])
 def send_pat(
         roomid: str = Body(description="群id"),
         wxid: str = Body(description="要拍的群友的wxid"),
@@ -284,7 +284,7 @@ def send_xml(
 
 
 # Friend and group management endpoints
-@app.post("/accept-friend", tags=["好友和群组管理"])
+@app.post("/accept-new-friend", tags=["好友和群组管理"])
 def accept_friend(
         v3: str = Body(description="加密用户名，好友申请消息里v3开头的字符串"),
         v4: str = Body(description="Ticket，好友申请消息里v4开头的字符串"),
@@ -587,7 +587,7 @@ def enable_receiving_msg(
         return {"status": "error", "message": str(e)}
 
 
-@app.post("/disable-receiving-msg", tags=["消息管理"])
+@app.post("/disable-recv-msg", tags=["消息管理"])
 def disable_receiving_msg(
         authenticated: bool = Depends(verify_token),
 ):
