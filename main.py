@@ -54,6 +54,7 @@ async def lifespan(app: FastAPI):
                 continue
             try:
                 msg = wcf.get_msg()
+                print(f"Received message: {json.dumps(msg, ensure_ascii=False)}")
                 dead_subscribers = set()
                 for subscriber in app.subscribers:
                     try:
