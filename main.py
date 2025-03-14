@@ -7,11 +7,14 @@ import shutil
 import threading
 import time
 import traceback
+import base64
+import tempfile
+import re
 from queue import Empty
 
 import uvicorn
 import yaml
-from fastapi import Body, Request, FastAPI, HTTPException, Security, Depends
+from fastapi import Body, Request, FastAPI, HTTPException, Security, Depends, UploadFile, File
 from fastapi.security import APIKeyHeader
 from sse_starlette.sse import EventSourceResponse
 from starlette.status import HTTP_401_UNAUTHORIZED
@@ -129,12 +132,25 @@ def send_text(
 
 @app.post("/send-image", tags=["消息发送"])
 def send_image(
-        path: str = Body(description="图片路径，支持本地路径或网络URL"),
+        image_data: str = Body(description="图片的base64编码数据"),
+        filename: str = Body(description="图片文件名，包含扩展名"),
         receiver: str = Body(description="消息接收者，roomid 或者 wxid"),
         authenticated: bool = Depends(verify_token),
 ):
     try:
-        ret = app.wcf.send_image(path, receiver)
+        # 解码base64数据
+        image_bytes = base64.b64decode(image_data)
+        
+        # 创建临时文件保存图片
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, filename)
+        
+        with open(temp_path, "wb") as buffer:
+            buffer.write(image_bytes)
+        
+        # 发送图片
+        ret = app.wcf.send_image(temp_path, receiver)
+        
         return {"status": "ok", "data": ret}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -142,12 +158,25 @@ def send_image(
 
 @app.post("/send-file", tags=["消息发送"])
 def send_file(
-        path: str = Body(description="文件路径，支持本地路径或网络URL"),
+        file_data: str = Body(description="文件的base64编码数据"),
+        filename: str = Body(description="文件名，包含扩展名"),
         receiver: str = Body(description="消息接收者，roomid 或者 wxid"),
         authenticated: bool = Depends(verify_token),
 ):
     try:
-        ret = app.wcf.send_file(path, receiver)
+        # 解码base64数据
+        file_bytes = base64.b64decode(file_data)
+        
+        # 创建临时文件保存文件
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, filename)
+        
+        with open(temp_path, "wb") as buffer:
+            buffer.write(file_bytes)
+        
+        # 发送文件
+        ret = app.wcf.send_file(temp_path, receiver)
+        
         return {"status": "ok", "data": ret}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -155,12 +184,25 @@ def send_file(
 
 @app.post("/send-emotion", tags=["消息发送"])
 def send_emotion(
-        path: str = Body(description="表情文件路径"),
+        file_data: str = Body(description="表情文件的base64编码数据"),
+        filename: str = Body(description="表情文件名，包含扩展名"),
         receiver: str = Body(description="消息接收者，roomid 或者 wxid"),
         authenticated: bool = Depends(verify_token),
 ):
     try:
-        ret = app.wcf.send_emotion(path, receiver)
+        # 解码base64数据
+        file_bytes = base64.b64decode(file_data)
+        
+        # 创建临时文件保存表情
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, filename)
+        
+        with open(temp_path, "wb") as buffer:
+            buffer.write(file_bytes)
+        
+        # 发送表情
+        ret = app.wcf.send_emotion(temp_path, receiver)
+        
         return {"status": "ok", "data": ret}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -216,11 +258,26 @@ def send_xml(
         receiver: str = Body(description="消息接收人，wxid 或者 roomid"),
         xml: str = Body(description="xml 内容"),
         type: int = Body(description="xml 类型，如：0x21 为小程序"),
-        path: str = Body(None, description="封面图片路径"),
+        cover_data: str = Body(None, description="封面图片的base64编码数据"),
+        cover_filename: str = Body(None, description="封面图片文件名，包含扩展名"),
         authenticated: bool = Depends(verify_token),
 ):
     try:
-        ret = app.wcf.send_xml(receiver, xml, type, path)
+        temp_path = None
+        if cover_data and cover_filename:
+            # 解码base64数据
+            cover_bytes = base64.b64decode(cover_data)
+            
+            # 创建临时文件保存封面图片
+            temp_dir = tempfile.gettempdir()
+            temp_path = os.path.join(temp_dir, cover_filename)
+            
+            with open(temp_path, "wb") as buffer:
+                buffer.write(cover_bytes)
+        
+        # 发送xml
+        ret = app.wcf.send_xml(receiver, xml, type, temp_path)
+        
         return {"status": "ok", "data": ret}
     except Exception as e:
         return {"status": "error", "message": str(e)}
