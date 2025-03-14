@@ -5,8 +5,7 @@ import json
 import logging.config
 import os
 import shutil
-import multiprocessing
-import signal
+import threading
 import time
 
 import uvicorn
@@ -15,6 +14,7 @@ from fastapi import Body, Request, FastAPI, HTTPException, Security, Depends
 from fastapi.security import APIKeyHeader
 from sse_starlette.sse import EventSourceResponse
 from starlette.status import HTTP_401_UNAUTHORIZED
+from contextlib import asynccontextmanager
 
 from wcferry import Wcf, WxMsg
 
@@ -33,48 +33,40 @@ API_TOKENS = yconfig["api_tokens"]
 SEND_RATE_LIMIT = yconfig.get("send_rate_limit", 0)
 
 wcf = Wcf(debug=True)
-
-
-def handler(sig, frame):
-    wcf.cleanup()
-    exit(0)
-
-
-signal.signal(signal.SIGINT, handler)
-
 subscribers = set()
 
 
-def pubsub(wcf: Wcf):
-    wcf.enable_receiving_msg(pyq=True)
-    while wcf.is_receiving_msg():
-        if not wcf.is_receiving_msg():
-            LOG.error("WCF is not receiving messages")
-            time.sleep(1)
-            continue
-        try:
-            msg = wcf.get_msg()
-            dead_subscribers = set()
-            for subscriber in subscribers:
-                try:
-                    subscriber(msg)
-                except Exception as e:
-                    dead_subscribers.add(subscriber)
-                    LOG.error(f"Error in subscriber: {e}")
-        except Exception as e:
-            LOG.error(f"Receiving message error: {e}")
-
-
-app = FastAPI(title="WCF HTTP")
-
-
 # Start the pubsub process when the application starts
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    def pubsub(wcf: Wcf):
+        wcf.enable_receiving_msg(pyq=True)
+        while wcf.is_receiving_msg():
+            if not wcf.is_receiving_msg():
+                LOG.error("WCF is not receiving messages")
+                time.sleep(1)
+                continue
+            try:
+                msg = wcf.get_msg()
+                dead_subscribers = set()
+                for subscriber in subscribers:
+                    try:
+                        subscriber(msg)
+                    except Exception as e:
+                        dead_subscribers.add(subscriber)
+                        LOG.error(f"Error in subscriber: {e}")
+            except Exception as e:
+                LOG.error(f"Receiving message error: {e}")
+
     wcf.send_text("WCF HTTP 服务已启动", "filehelper")
-    process = multiprocessing.Process(target=pubsub, args=(wcf,))
-    process.daemon = True  # Make the process daemon so it exits when the main program exits
-    process.start()
+    thread = threading.Thread(target=pubsub, args=(wcf,))
+    thread.daemon = True  # Make the thread daemon so it exits when the main program exits
+    thread.start()
+    yield
+    wcf.cleanup()
+
+
+app = FastAPI(title="WCF HTTP", lifespan=lifespan)
 
 
 async def verify_token(api_key: str = Security(APIKeyHeader(name="X-API-Token", auto_error=False))):
@@ -145,6 +137,7 @@ def send_text(
         return {"status": "ok", "data": ret}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
