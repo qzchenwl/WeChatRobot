@@ -11,7 +11,7 @@ from queue import Empty
 
 import uvicorn
 import yaml
-from fastapi import Body, Request, FastAPI, HTTPException, Security, Depends, APIRouter
+from fastapi import Body, Request, FastAPI, HTTPException, Security, Depends
 from fastapi.security import APIKeyHeader
 from sse_starlette.sse import EventSourceResponse
 from starlette.status import HTTP_401_UNAUTHORIZED
@@ -30,16 +30,6 @@ except FileNotFoundError:
 
 API_KEYS = yconfig["api_keys"]
 SEND_RATE_LIMIT = yconfig.get("send_rate_limit", 0)
-
-# Create routers for different categories
-message_router = APIRouter(tags=["消息发送"])
-friend_group_router = APIRouter(tags=["好友和群组管理"])
-media_router = APIRouter(tags=["媒体处理"])
-info_router = APIRouter(tags=["信息获取"])
-msg_management_router = APIRouter(tags=["消息管理"])
-system_router = APIRouter(tags=["系统状态"])
-pyq_router = APIRouter(tags=["朋友圈相关"])
-subscription_router = APIRouter(tags=["消息订阅"])
 
 # Start the pubsub process when the application starts
 @asynccontextmanager
@@ -105,17 +95,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="WCF HTTP", lifespan=lifespan)
-
-# Include all routers
-app.include_router(message_router)
-app.include_router(friend_group_router)
-app.include_router(media_router)
-app.include_router(info_router)
-app.include_router(msg_management_router)
-app.include_router(system_router)
-app.include_router(pyq_router)
-app.include_router(subscription_router)
-
+# app = FastAPI(title="WCF HTTP")
 
 async def verify_token(api_key: str = Security(APIKeyHeader(name="X-API-KEY", auto_error=False))):
     if api_key not in API_KEYS:
@@ -127,13 +107,13 @@ async def verify_token(api_key: str = Security(APIKeyHeader(name="X-API-KEY", au
     return True
 
 
-@app.get("/")
+@app.get("/", tags=["系统状态"])
 def read_root(authenticated: bool = Depends(verify_token)):
     return {"message": "Service is running"}
 
 
 # Message sending endpoints
-@message_router.post("/send-text")
+@app.post("/send-text", tags=["消息发送"])
 def send_text(
         msg: str = Body(description="要发送的消息，换行用\\n表示"),
         receiver: str = Body("filehelper", description="消息接收者，roomid 或者 wxid"),
@@ -147,7 +127,7 @@ def send_text(
         return {"status": "error", "message": str(e)}
 
 
-@message_router.post("/send-image")
+@app.post("/send-image", tags=["消息发送"])
 def send_image(
         path: str = Body(description="图片路径，支持本地路径或网络URL"),
         receiver: str = Body(description="消息接收者，roomid 或者 wxid"),
@@ -160,7 +140,7 @@ def send_image(
         return {"status": "error", "message": str(e)}
 
 
-@message_router.post("/send-file")
+@app.post("/send-file", tags=["消息发送"])
 def send_file(
         path: str = Body(description="文件路径，支持本地路径或网络URL"),
         receiver: str = Body(description="消息接收者，roomid 或者 wxid"),
@@ -173,7 +153,7 @@ def send_file(
         return {"status": "error", "message": str(e)}
 
 
-@message_router.post("/send-emotion")
+@app.post("/send-emotion", tags=["消息发送"])
 def send_emotion(
         path: str = Body(description="表情文件路径"),
         receiver: str = Body(description="消息接收者，roomid 或者 wxid"),
@@ -186,7 +166,7 @@ def send_emotion(
         return {"status": "error", "message": str(e)}
 
 
-@message_router.post("/send-rich-text")
+@app.post("/send-rich-text", tags=["消息发送"])
 def send_rich_text(
         name: str = Body(description="左下显示的名字"),
         account: str = Body(description="公众号id，可以显示对应的头像"),
@@ -204,7 +184,7 @@ def send_rich_text(
         return {"status": "error", "message": str(e)}
 
 
-@message_router.post("/send-pat")
+@app.post("/send-pat", tags=["消息发送"])
 def send_pat(
         roomid: str = Body(description="群id"),
         wxid: str = Body(description="要拍的群友的wxid"),
@@ -217,7 +197,7 @@ def send_pat(
         return {"status": "error", "message": str(e)}
 
 
-@message_router.post("/forward-msg")
+@app.post("/forward-msg", tags=["消息发送"])
 def forward_msg(
         id: int = Body(description="消息中id"),
         thumb: str = Body(description="消息中的thumb"),
@@ -231,7 +211,7 @@ def forward_msg(
         return {"status": "error", "message": str(e)}
 
 
-@message_router.post("/send-xml")
+@app.post("/send-xml", tags=["消息发送"])
 def send_xml(
         receiver: str = Body(description="消息接收人，wxid 或者 roomid"),
         xml: str = Body(description="xml 内容"),
@@ -247,7 +227,7 @@ def send_xml(
 
 
 # Friend and group management endpoints
-@friend_group_router.post("/accept-friend")
+@app.post("/accept-friend", tags=["好友和群组管理"])
 def accept_friend(
         v3: str = Body(description="加密用户名，好友申请消息里v3开头的字符串"),
         v4: str = Body(description="Ticket，好友申请消息里v4开头的字符串"),
@@ -261,7 +241,7 @@ def accept_friend(
         return {"status": "error", "message": str(e)}
 
 
-@friend_group_router.post("/receive-transfer")
+@app.post("/receive-transfer", tags=["好友和群组管理"])
 def receive_transfer(
         wxid: str = Body(description="转账消息里的发送人wxid"),
         transferid: str = Body(description="转账消息里的transferid"),
@@ -275,7 +255,7 @@ def receive_transfer(
         return {"status": "error", "message": str(e)}
 
 
-@friend_group_router.post("/add-chatroom-members")
+@app.post("/add-chatroom-members", tags=["好友和群组管理"])
 def add_chatroom_members(
         roomid: str = Body(description="待加群的id"),
         wxids: str = Body(description="要加到群里的wxid，多个用逗号分隔"),
@@ -288,7 +268,7 @@ def add_chatroom_members(
         return {"status": "error", "message": str(e)}
 
 
-@friend_group_router.post("/del-chatroom-members")
+@app.post("/del-chatroom-members", tags=["好友和群组管理"])
 def del_chatroom_members(
         roomid: str = Body(description="群的id"),
         wxids: str = Body(description="要删除成员的wxid，多个用逗号分隔"),
@@ -301,7 +281,7 @@ def del_chatroom_members(
         return {"status": "error", "message": str(e)}
 
 
-@friend_group_router.post("/invite-chatroom-members")
+@app.post("/invite-chatroom-members", tags=["好友和群组管理"])
 def invite_chatroom_members(
         roomid: str = Body(description="群的id"),
         wxids: str = Body(description="要邀请成员的wxid，多个用逗号分隔"),
@@ -315,7 +295,7 @@ def invite_chatroom_members(
 
 
 # Media processing endpoints
-@media_router.post("/download-attach")
+@app.post("/download-attach", tags=["媒体处理"])
 def download_attach(
         id: int = Body(description="消息中id"),
         thumb: str = Body(description="消息中的thumb"),
@@ -329,7 +309,7 @@ def download_attach(
         return {"status": "error", "message": str(e)}
 
 
-@media_router.post("/download-image")
+@app.post("/download-image", tags=["媒体处理"])
 def download_image(
         id: int = Body(description="消息中id"),
         extra: str = Body(description="消息中的extra"),
@@ -344,7 +324,7 @@ def download_image(
         return {"status": "error", "message": str(e)}
 
 
-@media_router.post("/download-video")
+@app.post("/download-video", tags=["媒体处理"])
 def download_video(
         id: int = Body(description="消息中id"),
         thumb: str = Body(description="消息中的thumb"),
@@ -359,7 +339,7 @@ def download_video(
         return {"status": "error", "message": str(e)}
 
 
-@media_router.post("/decrypt-image")
+@app.post("/decrypt-image", tags=["媒体处理"])
 def decrypt_image(
         src: str = Body(description="加密的图片路径"),
         dir: str = Body(description="保存图片的目录"),
@@ -373,7 +353,7 @@ def decrypt_image(
 
 
 # Information retrieval endpoints
-@info_router.get("/get-chatroom-members")
+@app.get("/get-chatroom-members", tags=["信息获取"])
 def get_chatroom_members(
         roomid: str,
         authenticated: bool = Depends(verify_token),
@@ -385,7 +365,7 @@ def get_chatroom_members(
         return {"status": "error", "message": str(e)}
 
 
-@info_router.get("/get-alias-in-chatroom")
+@app.get("/get-alias-in-chatroom", tags=["信息获取"])
 def get_alias_in_chatroom(
         wxid: str,
         roomid: str,
@@ -398,7 +378,7 @@ def get_alias_in_chatroom(
         return {"status": "error", "message": str(e)}
 
 
-@info_router.get("/get-friends")
+@app.get("/get-friends", tags=["信息获取"])
 def get_friends(
         authenticated: bool = Depends(verify_token),
 ):
@@ -409,7 +389,7 @@ def get_friends(
         return {"status": "error", "message": str(e)}
 
 
-@info_router.get("/get-contacts")
+@app.get("/get-contacts", tags=["信息获取"])
 def get_contacts(
         authenticated: bool = Depends(verify_token),
 ):
@@ -420,7 +400,7 @@ def get_contacts(
         return {"status": "error", "message": str(e)}
 
 
-@info_router.get("/get-dbs")
+@app.get("/get-dbs", tags=["信息获取"])
 def get_dbs(
         authenticated: bool = Depends(verify_token),
 ):
@@ -431,7 +411,7 @@ def get_dbs(
         return {"status": "error", "message": str(e)}
 
 
-@info_router.get("/get-tables")
+@app.get("/get-tables", tags=["信息获取"])
 def get_tables(
         db: str,
         authenticated: bool = Depends(verify_token),
@@ -443,7 +423,7 @@ def get_tables(
         return {"status": "error", "message": str(e)}
 
 
-@info_router.get("/get-user-info")
+@app.get("/get-user-info", tags=["信息获取"])
 def get_user_info(
         authenticated: bool = Depends(verify_token),
 ):
@@ -454,7 +434,7 @@ def get_user_info(
         return {"status": "error", "message": str(e)}
 
 
-@info_router.get("/get-msg-types")
+@app.get("/get-msg-types", tags=["信息获取"])
 def get_msg_types(
         authenticated: bool = Depends(verify_token),
 ):
@@ -465,7 +445,7 @@ def get_msg_types(
         return {"status": "error", "message": str(e)}
 
 
-@info_router.get("/get-qrcode")
+@app.get("/get-qrcode", tags=["信息获取"])
 def get_qrcode(
         authenticated: bool = Depends(verify_token),
 ):
@@ -476,7 +456,7 @@ def get_qrcode(
         return {"status": "error", "message": str(e)}
 
 
-@info_router.get("/get-info-by-wxid")
+@app.get("/get-info-by-wxid", tags=["信息获取"])
 def get_info_by_wxid(
         wxid: str,
         authenticated: bool = Depends(verify_token),
@@ -488,7 +468,7 @@ def get_info_by_wxid(
         return {"status": "error", "message": str(e)}
 
 
-@info_router.post("/get-ocr-result")
+@app.post("/get-ocr-result", tags=["信息获取"])
 def get_ocr_result(
         extra: str = Body(description="待识别的图片路径，消息里的extra"),
         timeout: int = Body(2, description="超时时间（秒）"),
@@ -501,7 +481,7 @@ def get_ocr_result(
         return {"status": "error", "message": str(e)}
 
 
-@info_router.get("/get-room-name")
+@app.get("/get-room-name", tags=["信息获取"])
 def get_room_name(
         roomid: str,
         authenticated: bool = Depends(verify_token),
@@ -513,7 +493,7 @@ def get_room_name(
         return {"status": "error", "message": str(e)}
 
 
-@info_router.get("/get-room-wxids")
+@app.get("/get-room-wxids", tags=["信息获取"])
 def get_room_wxids(
         roomid: str,
         authenticated: bool = Depends(verify_token),
@@ -526,7 +506,7 @@ def get_room_wxids(
 
 
 # Message management endpoints
-@msg_management_router.post("/revoke-msg")
+@app.post("/revoke-msg", tags=["消息管理"])
 def revoke_msg(
         id: int = Body(description="待撤回消息的id"),
         authenticated: bool = Depends(verify_token),
@@ -538,7 +518,7 @@ def revoke_msg(
         return {"status": "error", "message": str(e)}
 
 
-@msg_management_router.post("/enable-receiving-msg")
+@app.post("/enable-receiving-msg", tags=["消息管理"])
 def enable_receiving_msg(
         pyq: bool = Body(False, description="是否接收朋友圈消息"),
         authenticated: bool = Depends(verify_token),
@@ -550,7 +530,7 @@ def enable_receiving_msg(
         return {"status": "error", "message": str(e)}
 
 
-@msg_management_router.post("/disable-receiving-msg")
+@app.post("/disable-receiving-msg", tags=["消息管理"])
 def disable_receiving_msg(
         authenticated: bool = Depends(verify_token),
 ):
@@ -561,7 +541,7 @@ def disable_receiving_msg(
         return {"status": "error", "message": str(e)}
 
 
-@msg_management_router.get("/is-receiving-msg")
+@app.get("/is-receiving-msg", tags=["消息管理"])
 def is_receiving_msg(
         authenticated: bool = Depends(verify_token),
 ):
@@ -572,7 +552,7 @@ def is_receiving_msg(
         return {"status": "error", "message": str(e)}
 
 
-@msg_management_router.get("/get-msg")
+@app.get("/get-msg", tags=["消息管理"])
 def get_msg(
         block: bool = True,
         authenticated: bool = Depends(verify_token),
@@ -585,7 +565,7 @@ def get_msg(
 
 
 # System status endpoints
-@system_router.get("/is-login")
+@app.get("/is-login", tags=["系统状态"])
 def is_login(
         authenticated: bool = Depends(verify_token),
 ):
@@ -596,7 +576,7 @@ def is_login(
         return {"status": "error", "message": str(e)}
 
 
-@system_router.get("/get-self-wxid")
+@app.get("/get-self-wxid", tags=["系统状态"])
 def get_self_wxid(
         authenticated: bool = Depends(verify_token),
 ):
@@ -607,23 +587,7 @@ def get_self_wxid(
         return {"status": "error", "message": str(e)}
 
 
-@system_router.post("/keep-running")
-def keep_running(
-        authenticated: bool = Depends(verify_token),
-):
-    try:
-        def run_keep_running():
-            app.wcf.keep_running()
-        
-        thread = threading.Thread(target=run_keep_running)
-        thread.daemon = True
-        thread.start()
-        return {"status": "ok", "message": "Keep running thread started"}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-
-@system_router.post("/query-sql")
+@app.post("/query-sql", tags=["系统状态"])
 def query_sql(
         db: str = Body(description="要查询的数据库"),
         sql: str = Body(description="要执行的SQL"),
@@ -637,7 +601,7 @@ def query_sql(
 
 
 # Pyq related endpoints
-@pyq_router.post("/refresh-pyq")
+@app.post("/refresh-pyq", tags=["朋友圈相关"])
 def refresh_pyq(
         id: int = Body(0, description="开始id，0为最新页"),
         authenticated: bool = Depends(verify_token),
@@ -650,7 +614,7 @@ def refresh_pyq(
 
 
 # Message subscription endpoints
-@subscription_router.get("/subscribe")
+@app.get("/subscribe", tags=["消息订阅"])
 def subscribe(request: Request, authenticated: bool = Depends(verify_token)):
     msg_queue = asyncio.Queue()
 
