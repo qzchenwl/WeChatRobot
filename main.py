@@ -74,6 +74,7 @@ async def startup_event():
     process = multiprocessing.Process(target=pubsub, args=(wcf,))
     process.daemon = True  # Make the process daemon so it exits when the main program exits
     process.start()
+    wcf.send_text("WCF HTTP 服务已启动", "filehelper")
 
 
 async def verify_token(api_key: str = Security(APIKeyHeader(name="X-API-Token", auto_error=False))):
