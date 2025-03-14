@@ -54,6 +54,21 @@ async def lifespan(app: FastAPI):
                 continue
             try:
                 msg = wcf.get_msg()
+                msg = {
+                    "id": msg.id,
+                    "ts": msg.ts,
+                    "sign": msg.sign,
+                    "type": msg.type,
+                    "xml": msg.xml,
+                    "sender": msg.sender,
+                    "roomid": msg.roomid,
+                    "content": msg.content,
+                    "thumb": msg.thumb,
+                    "extra": msg.extra,
+                    "is_at": msg.is_at(app.wcf.self_wxid),
+                    "is_self": msg.from_self(),
+                    "is_group": msg.from_group(),
+                }
                 print(f"Received message: {json.dumps(msg, ensure_ascii=False)}")
                 dead_subscribers = set()
                 for subscriber in app.subscribers:
@@ -103,21 +118,7 @@ def subscribe(request: Request, authenticated: bool = Depends(verify_token)):
     msg_queue = asyncio.Queue()
 
     async def subscriber(msg: WxMsg):
-        await msg_queue.put({
-            "id": msg.id,
-            "ts": msg.ts,
-            "sign": msg.sign,
-            "type": msg.type,
-            "xml": msg.xml,
-            "sender": msg.sender,
-            "roomid": msg.roomid,
-            "content": msg.content,
-            "thumb": msg.thumb,
-            "extra": msg.extra,
-            "is_at": msg.is_at(app.wcf.self_wxid),
-            "is_self": msg.from_self(),
-            "is_group": msg.from_group(),
-        })
+        await msg_queue.put(msg)
 
     app.subscribers.add(subscriber)
 
