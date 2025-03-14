@@ -5,6 +5,7 @@ import json
 import logging.config
 import os
 import shutil
+import multiprocessing
 
 import yaml
 from fastapi import Body, Request, FastAPI, HTTPException, Security, Depends
@@ -34,7 +35,12 @@ subscribers = set()
 
 
 def pubsub(wcf: Wcf):
+    wcf.enable_receiving_msg(pyq=True)
     while wcf.is_receiving_msg():
+        if not wcf.is_receiving_msg():
+            LOG.error("WCF is not receiving messages")
+            time.sleep(1)
+            continue
         try:
             msg = wcf.get_msg()
             dead_subscribers = set()
@@ -49,6 +55,14 @@ def pubsub(wcf: Wcf):
 
 
 app = FastAPI(title="WCF HTTP")
+
+
+# Start the pubsub process when the application starts
+@app.on_event("startup")
+async def startup_event():
+    process = multiprocessing.Process(target=pubsub, args=(wcf,))
+    process.daemon = True  # Make the process daemon so it exits when the main program exits
+    process.start()
 
 
 async def verify_token(api_key: str = Security(APIKeyHeader(name="X-API-Token", auto_error=False))):
