@@ -107,14 +107,14 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="WCF HTTP", lifespan=lifespan)
 
 # Include all routers
-app.include_router(message_router)
-app.include_router(friend_group_router)
-app.include_router(media_router)
-app.include_router(info_router)
-app.include_router(msg_management_router)
-app.include_router(system_router)
-app.include_router(pyq_router)
-app.include_router(subscription_router)
+app.include_router(message_router, prefix="")
+app.include_router(friend_group_router, prefix="")
+app.include_router(media_router, prefix="")
+app.include_router(info_router, prefix="")
+app.include_router(msg_management_router, prefix="")
+app.include_router(system_router, prefix="")
+app.include_router(pyq_router, prefix="")
+app.include_router(subscription_router, prefix="")
 
 
 async def verify_token(api_key: str = Security(APIKeyHeader(name="X-API-KEY", auto_error=False))):
