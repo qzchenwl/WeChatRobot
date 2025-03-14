@@ -130,7 +130,7 @@ def subscribe(request: Request, authenticated: bool = Depends(verify_token)):
                 msg = await msg_queue.get()
                 yield {
                     "event": "message",
-                    "data": json.dumps(msg)
+                    "data": json.dumps(msg, ensure_ascii=False),
                 }
         except Exception as e:
             print(f"Client disconnected: {e}")
