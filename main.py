@@ -66,7 +66,7 @@ async def lifespan(app: FastAPI):
                 LOG.error(f"Receiving message error: {e}")
 
     app.wcf.send_text("WCF HTTP 服务已启动", "filehelper")
-    thread = threading.Thread(target=pubsub, args=(wcf,))
+    thread = threading.Thread(target=pubsub, args=(app.wcf,))
     thread.daemon = True  # Make the thread daemon so it exits when the main program exits
     thread.start()
     yield
