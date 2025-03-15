@@ -670,6 +670,46 @@ def decrypt_image(
         return {"status": "error", "message": str(e)}
 
 
+@app.post("/get-audio-msg", tags=["媒体处理"])
+def get_audio_msg(
+        id: int = Body(description="语音消息id"),
+        timeout: int = Body(3, description="超时时间（秒）"),
+        authenticated: bool = Depends(verify_token),
+):
+    """获取语音消息并转成MP3
+    
+    Args:
+        id (int): 语音消息id
+        timeout (int): 超时时间（秒）
+        
+    Returns:
+        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
+        ret: 成功返回字典包含文件名和base64编码内容；失败返回空字符串，原因见日志
+    """
+    try:
+        # 使用临时目录
+        temp_dir = tempfile.gettempdir()
+
+        file_path = app.wcf.get_audio_msg(id, temp_dir, timeout)
+        if file_path:
+            # 如果下载成功，读取文件并转为base64
+            with open(file_path, "rb") as f:
+                file_content = f.read()
+
+            # 获取文件名
+            file_name = os.path.basename(file_path)
+
+            # 转为base64
+            base64_content = base64.b64encode(file_content).decode('utf-8')
+
+            # 返回文件名和base64内容
+            return {"status": "ok", "data": {"file_name": file_name, "base64_content": base64_content}}
+        else:
+            return {"status": "ok", "data": ""}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 # Information retrieval endpoints
 @app.get("/get-chatroom-members", tags=["信息获取"])
 def get_chatroom_members(
