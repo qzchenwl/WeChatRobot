@@ -954,11 +954,10 @@ def get_room_wxids(
         roomid: 群的 id
         
     Returns:
-        dict: {"status": "ok", "data": ret} 或 {"status": "error", "message": str}
-        ret: 群成员 wxid 列表
+            Dict: 群成员列表: {wxid1: 昵称1, wxid2: 昵称2, ...}
     """
     try:
-        ret = app.wcf.get_room_wxids(roomid)
+        ret = app.wcf.get_chatroom_members(roomid)
         return {"status": "ok", "data": ret}
     except Exception as e:
         return {"status": "error", "message": str(e)}
